@@ -108,16 +108,38 @@ across the full grid wrote 1.4 million metric rows and a 350 MB tracking databas
 
 ## Running it
 
+This repo has its own virtual environment, separate from A1's.
+
 ```bash
-pip install -r app/requirements.txt
-pip install mlflow pytest
+python3.13 -m venv .venv
+./.venv/bin/pip install -r app/requirements.txt
+./.venv/bin/pip install "mlflow==3.15.2" pytest jupyterlab matplotlib seaborn
 
 # tests: the class is checked on a synthetic problem where the answer is known
-python -m pytest
+./.venv/bin/python -m pytest
 
 # the experiment
-jupyter lab notebooks/02_car_price_scratch_regression.ipynb
+./.venv/bin/jupyter lab notebooks/02_car_price_scratch_regression.ipynb
 ```
+
+`requirements-dev.lock.txt` records the exact versions this was developed against.
+
+Two things worth knowing about the install:
+
+**Pin mlflow explicitly.** Installing it unpinned alongside everything else lets pip
+backtrack all the way to mlflow 1.27, which then fails to import against a modern
+protobuf. `mlflow==3.15.2` avoids the whole resolution.
+
+**mlflow declares `pandas<3`, and this project uses pandas 3.0.5 anyway.** The pin is
+conservative rather than a real incompatibility - nested runs, metric logging and
+`search_runs` were all verified working on pandas 3, and the full 144-run sweep ran on
+it. Keeping 3.0.5 matters because it is what `app/requirements.txt` installs into the
+Docker image, and training and serving should not be on different pandas majors. `pip`
+prints a dependency-conflict warning on install; it is expected.
+
+**matplotlib is not a runtime dependency.** `linear_regression.py` imports it lazily
+inside `feature_importance()`, because the web app imports that module only to unpickle
+the model and never plots. That keeps ~60 MB of plotting library out of the image.
 
 ## The web app
 
@@ -133,7 +155,32 @@ Three pages:
 - `/predict-scratch` — the new from-scratch model, with an explanation of how the two differ
   and the test-set numbers behind the claim
 
-## Deployment
+## Deployment on ml-brain
 
-Deployed on the class server behind Traefik, which terminates TLS and routes by subdomain,
-so the container publishes no ports of its own.
+`app/docker-compose.traefik.yaml` deploys to the class server behind Traefik. Traefik
+terminates TLS and routes by subdomain, so the container publishes **no ports of its own**
+- it is reachable only across the Docker network the two share. That is why the app's port
+appears once, in a `loadbalancer.server.port` label, rather than as a host mapping.
+
+```bash
+# on the server, after `docker ps` confirms your access works
+docker compose -f docker-compose.traefik.yaml pull
+docker compose -f docker-compose.traefik.yaml up -d
+docker compose -f docker-compose.traefik.yaml logs -f
+```
+
+Three values in that file are named per-server and must be checked against the TA's
+template first, because a wrong value **fails silently** - the container comes up healthy
+and Traefik simply never routes to it:
+
+| Setting | How to find it |
+| --- | --- |
+| external network name | `docker network ls` on the server |
+| `entrypoints` | usually `websecure`, sometimes `https` |
+| `certresolver` | whichever ACME resolver their Traefik defines |
+
+Check the result at `https://traefik.ml.brain.cs.ait.ac.th/` (CSIM wifi): the router and
+service should both show green.
+
+CI publishes to `<user>/car-price-predictor-a2`, deliberately a different Docker Hub repo
+from A1's image so deploying A2 cannot overwrite the A1 submission.

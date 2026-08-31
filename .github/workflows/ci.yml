@@ -56,8 +56,14 @@ jobs:
           docker logs car-price-app
           exit 1
 
-      - name: Check the predict page is served
-        run: curl -fsS http://localhost:8050/predict | grep -q "Chaky Car Price Predictor"
+      - name: Check both predict pages are served
+        run: |
+          curl -fsS http://localhost:8050/predict | grep -q "Chaky Car Price Predictor"
+          curl -fsS http://localhost:8050/predict-scratch | grep -q "Chaky Car Price Predictor"
+
+      - name: Check the from-scratch model answers
+        run: |
+          curl -fsS http://localhost:8050/_dash-dependencies | grep -q "v2-prediction-output"
 
       - name: Check the Dash callback endpoint is registered
         run: |
@@ -82,9 +88,10 @@ jobs:
       - name: Push the tested image to Docker Hub
         if: github.event_name == 'push'
         env:
-          # defaults to <your-docker-hub-user>/car-price-predictor; override with a
+          # defaults to <your-docker-hub-user>/car-price-predictor-a2 - a separate repo
+          # from A1's image, so deploying A2 cannot overwrite the A1 submission; override with a
           # DOCKERHUB_REPOSITORY repo variable to publish under a different name
-          IMAGE_NAME: ${{ vars.DOCKERHUB_REPOSITORY || format('{0}/car-price-predictor', secrets.DOCKERHUB_USERNAME) }}
+          IMAGE_NAME: ${{ vars.DOCKERHUB_REPOSITORY || format('{0}/car-price-predictor-a2', secrets.DOCKERHUB_USERNAME) }}
         run: |
           IMAGE=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
           docker tag car-price-app:ci "${IMAGE}:${GITHUB_SHA}"

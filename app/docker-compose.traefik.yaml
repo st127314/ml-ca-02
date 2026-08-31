@@ -1,0 +1,76 @@
+# Deployment on the class server (ml-brain, 192.41.170.25) behind Traefik.
+#
+# Traefik terminates TLS and routes by subdomain, so this container publishes no
+# ports of its own. It is reachable only through the proxy, over the Docker network
+# they share. That is why there is no `ports:` block here and why the app's port
+# appears once, in the loadbalancer label, rather than as a host mapping.
+#
+# ---------------------------------------------------------------------------
+# CONFIRM THESE THREE AGAINST THE TA's TEMPLATE BEFORE DEPLOYING.
+# They are named per-server, and a wrong value fails quietly: the container comes
+# up healthy and Traefik simply never routes to it.
+#
+#   1. networks.<name>       - the external network Traefik is attached to.
+#                              Find it with:  docker network ls
+#   2. entrypoints           - usually `websecure` for 443, sometimes `https`.
+#   3. certresolver          - the ACME resolver configured on their Traefik.
+#
+# Check the result at https://traefik.ml.brain.cs.ait.ac.th/ (CSIM wifi only):
+# the router and service should both appear green.
+# ---------------------------------------------------------------------------
+#
+# Usage on the server:
+#   docker compose -f docker-compose.traefik.yaml pull
+#   docker compose -f docker-compose.traefik.yaml up -d
+#   docker compose -f docker-compose.traefik.yaml logs -f
+
+services:
+  web-st127314:
+    # Built by CI and pushed to Docker Hub. Deploying a tag rather than :latest
+    # makes it obvious which build is live and lets you roll back by editing one line.
+    image: ${DOCKERHUB_USER:-st127314}/car-price-predictor-a2:latest
+    container_name: web-st127314
+    restart: unless-stopped
+
+    networks:
+      - traefik_default
+
+    labels:
+      - "traefik.enable=true"
+
+      # The subdomain this service answers on. `web-st127314` pairs with the
+      # container name so it is easy to match a route to a container on a server
+      # running 40+ of them.
+      - "traefik.http.routers.st127314.rule=Host(`st127314.ml.brain.cs.ait.ac.th`)"
+      - "traefik.http.routers.st127314.entrypoints=websecure"
+      - "traefik.http.routers.st127314.tls=true"
+      - "traefik.http.routers.st127314.tls.certresolver=letsencrypt"
+
+      # The port INSIDE the container. Traefik needs this explicitly because the
+      # container publishes nothing; it is the one place the app's port is declared.
+      - "traefik.http.services.st127314.loadbalancer.server.port=8050"
+
+      # Redirect plain HTTP to HTTPS. Drop this pair if the TA's Traefik already
+      # applies a global redirect, otherwise the two definitions collide.
+      - "traefik.http.routers.st127314-http.rule=Host(`st127314.ml.brain.cs.ait.ac.th`)"
+      - "traefik.http.routers.st127314-http.entrypoints=web"
+      - "traefik.http.routers.st127314-http.middlewares=st127314-redirect"
+      - "traefik.http.middlewares.st127314-redirect.redirectscheme.scheme=https"
+
+    environment:
+      # The Dockerfile already sets this; repeated here so the binding is visible
+      # at the deployment layer. Binding to 0.0.0.0 is what lets Traefik reach the
+      # app across the Docker network - 127.0.0.1 would only be reachable inside
+      # the container itself.
+      - HOST=0.0.0.0
+
+    # ~374 MB resident with the Random Forest loaded. The limit is a backstop
+    # against one student's container taking the shared server down, not a target.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+networks:
+  traefik_default:
+    external: true

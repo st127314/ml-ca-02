@@ -14,7 +14,6 @@ Additions on top of the class version, all required by A2 Task 1:
   * `feature_importance()`    - plot importance from the fitted coefficients
 """
 
-import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import KFold
 
@@ -303,6 +302,11 @@ class LinearRegression:
         names = np.asarray(feature_names)
         if len(names) != len(coef):
             raise ValueError(f"got {len(names)} feature names for {len(coef)} coefficients")
+
+        # Imported here rather than at module level: the web app imports this module
+        # to unpickle the model and never plots, so keeping matplotlib out of the
+        # import path keeps it out of app/requirements.txt and out of the image.
+        import matplotlib.pyplot as plt
 
         order = np.argsort(np.abs(coef))[::-1][:top_n]
         coef, names = coef[order][::-1], names[order][::-1]

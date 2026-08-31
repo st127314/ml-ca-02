@@ -1,0 +1,10 @@
+# Local development. For the class server see docker-compose.traefik.yaml, which
+# publishes no ports and is routed by Traefik instead.
+services:
+  car-price-app:
+    build:
+      context: .
+      dockerfile: .Dockerfile
+    ports:
+      - "8050:8050"
+    restart: unless-stopped
