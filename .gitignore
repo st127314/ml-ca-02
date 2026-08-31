@@ -1,0 +1,12 @@
+.pytest_cache
+__pycache__
+.env
+.DS_Store
+*.pyc
+.ipynb_checkpoints
+.venv/
+mlflow.db
+mlruns/
+*.pdf
+*.pkl
+*.html
