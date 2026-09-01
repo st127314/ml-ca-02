@@ -115,13 +115,19 @@ class LinearRegression:
         self.regularization = regularization
         self.init_method = init_method
         self.use_momentum = use_momentum
+        if use_momentum and not 0 < momentum < 1:
+            # The brief specifies the range, and outside it the failure is silent in
+            # the worst way: >= 1 compounds velocity every step until the weights
+            # overflow, <= 0 quietly disables or reverses the correction.
+            raise ValueError(f"momentum must be in (0, 1), got {momentum!r}")
         self.momentum = momentum
         self.momentum_variant = momentum_variant
         self.use_mlflow = use_mlflow and mlflow is not None
         # Log the loss curve every `log_every` epochs rather than every single one.
-        # Batch gradient descent needs thousands of epochs to converge, and logging
-        # two metrics per epoch across the whole grid produced 1.4M rows and a 350MB
-        # tracking database - almost all of it redundant for drawing a loss curve.
+        # Batch gradient descent needs thousands of epochs to converge, so two metrics
+        # per epoch across the whole grid works out at roughly 1.4M rows and 350MB of
+        # tracking database - an early attempt had reached 548k rows before I stopped
+        # it - and almost all of that is redundant for drawing a loss curve.
         self.log_every = max(1, int(log_every))
         self.random_state = random_state
 

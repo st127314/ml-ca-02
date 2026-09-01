@@ -128,6 +128,18 @@ def test_unknown_momentum_variant_is_rejected():
         model.fit(X, y)
 
 
+@pytest.mark.parametrize("bad", [0, 1, 1.5, -0.5])
+def test_momentum_outside_the_open_unit_interval_is_rejected(bad):
+    """The brief specifies (0, 1), and outside it the failure would be silent."""
+    with pytest.raises(ValueError, match="momentum must be in"):
+        Normal(use_mlflow=False, use_momentum=True, momentum=bad)
+
+
+def test_momentum_range_is_only_checked_when_momentum_is_used():
+    """Constructing without momentum must not trip on the default coefficient."""
+    Normal(use_mlflow=False, use_momentum=False, momentum=0)
+
+
 def test_momentum_applies_the_previous_step():
     """One update by hand, against the pseudocode in the assignment brief."""
     model = Normal(use_mlflow=False, lr=0.1, use_momentum=True, momentum=0.5,
