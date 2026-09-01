@@ -11,9 +11,9 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -23,7 +23,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt
-          pip install pytest==8.4.2
+          # matplotlib is a test dependency, not a runtime one. `feature_importance()`
+          # imports it lazily so it stays out of app/requirements.txt and out of the
+          # Docker image, which means the two tests that exercise the plot need it
+          # installed here explicitly or they fail on import.
+          pip install pytest==8.4.2 matplotlib==3.11.1
 
       - name: Run pytest
         run: pytest
@@ -35,7 +39,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build image
         run: docker build -f app/.Dockerfile -t car-price-app:ci app
@@ -80,7 +84,7 @@ jobs:
 
       - name: Log in to Docker Hub
         if: github.event_name == 'push'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
