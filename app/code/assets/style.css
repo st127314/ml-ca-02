@@ -164,6 +164,25 @@ body {
   background: #2559c7;
 }
 
+/* Two calls to action on the landing page now that there are two models. The second one
+   is outlined rather than filled so the pair reads as a choice, not as a primary action
+   followed by an afterthought. */
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.predict-button.secondary {
+  background: #fff;
+  color: #2f6fed;
+  border: 1px solid #2f6fed;
+}
+
+.predict-button.secondary:hover {
+  background: #eef3fe;
+}
+
 .result-card {
   position: sticky;
   top: 24px;

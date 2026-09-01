@@ -27,9 +27,21 @@ layout = html.Div(
                     "a quick, data-backed starting point before they negotiate.",
                     className="lede",
                 ),
-                dcc.Link(
-                    html.Button("Try the predictor", className="predict-button"),
-                    href="/predict",
+                html.Div(
+                    [
+                        dcc.Link(
+                            html.Button("Try the predictor", className="predict-button"),
+                            href="/predict",
+                        ),
+                        dcc.Link(
+                            html.Button(
+                                "Try the new from-scratch model",
+                                className="predict-button secondary",
+                            ),
+                            href="/predict-scratch",
+                        ),
+                    ],
+                    className="hero-actions",
                 ),
             ],
             className="hero",
@@ -79,7 +91,7 @@ layout = html.Div(
                             "Random Forest came out on top on a held-out validation split, "
                             "and 5-fold cross-validation confirmed the same ranking rather "
                             "than one lucky split. A 24-combination grid search then tuned "
-                            "it. That tuned model is the one running behind this app:"
+                            "it. That tuned model is the one running behind the original predictor page:"
                         ),
                         html.Div(
                             [

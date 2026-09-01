@@ -65,8 +65,10 @@ opposite of what the brief's own prose describes:
 
 If `prev_step` instead holds the update actually applied (`−step`), the same line is textbook
 momentum. Both are implemented and selectable via `momentum_variant`; `standard` is the
-default because it matches the described behaviour. The notebook shows the comparison on the
-real data too.
+default because it matches the described behaviour. The table above is the notebook's
+synthetic problem, where the true weights are known. On the real data the grid measures the
+axis that matters for the experiment — standard momentum against none — at median CV R²
+0.762 with against 0.243 without.
 
 ## Task 2 — the experiment
 
@@ -78,7 +80,9 @@ real data too.
 | Initialisation | zeros, xavier | 2 |
 | Learning rate | 0.01, 0.001, 0.0001 | 3 |
 
-144 configurations, 3-fold cross validation, 432 fits.
+144 configurations, 3-fold cross validation, 432 fits, plus one refit of the winner on
+the full training split before it is scored on the test set. In MLflow that is 145 parent
+runs and 435 nested per-fold runs.
 
 **On the epoch budget.** An epoch means something different per method: batch does one
 weight update per epoch, mini-batch about 109, stochastic 5,444. Giving all three the same
@@ -86,6 +90,64 @@ number of epochs would compare how many updates each was allowed, not the method
 first: batch at 500 epochs reaches R² −0.07 and needs around 5,000 to converge, while
 stochastic is already at 0.85 after 5. The budget equalises updates roughly and is then held
 fixed across every configuration.
+
+## Results
+
+Selected by cross-validated R² alone: **polynomial features, batch gradient descent, Xavier
+initialisation, learning rate 0.01, momentum 0.9** — CV R² 0.8888. The test set was scored
+once, by a single refit of that configuration.
+
+| Metric | Value |
+| --- | --- |
+| R² (log scale) | **0.876** |
+| MSE (log scale) | 0.0678 |
+| R² (price scale) | −14.88 |
+| R² (price scale, excluding one row) | 0.868 |
+
+Log-scale figures are the headline because log price is what the model minimised and what
+cross-validation selected on. The −14.88 is one car: the most expensive in the test set is
+predicted at 83.7M against an actual 10M, and squaring a 73M error after `exp()` swamps the
+other 1,360 rows. Reported rather than trimmed, on the notebook and on the web page.
+
+What the grid found, one axis at a time (median across the grid, because diverged runs make
+a mean meaningless):
+
+| Axis | Best setting | Median CV R² | Worst setting | Median CV R² |
+| --- | --- | --- | --- | --- |
+| Learning rate | 0.01 | 0.833 | 0.0001 | −0.293 |
+| Momentum | with | 0.762 | without | 0.243 |
+| Method | stochastic | 0.754 | mini-batch | 0.277 |
+| Model | normal | 0.838 | polynomial | 0.261 |
+| Initialisation | zeros | 0.753 | xavier | 0.748 |
+
+Learning rate dominates; momentum is the next largest effect; initialisation makes no
+difference to where a convex loss ends up, only to how fast it gets there. Polynomial has
+the worst median and the best single run — it wins by 0.008 R² when everything else is right
+and diverges outright under stochastic descent.
+
+![Comparison across the experiment axes](figures/experiment_comparison.png)
+
+![Feature importance from the fitted coefficients](figures/feature_importance.png)
+
+### Against the A1 model
+
+A1's Random Forest was trained on the same cleaning and the same split, so it scores on
+exactly the same 1,361 test rows (notebook §2.7):
+
+| Metric | A1 Random Forest | A2 scratch linear |
+| --- | --- | --- |
+| R² (log) | **0.909** | 0.876 |
+| R² (price, same row excluded from both) | **0.910** | 0.868 |
+| Median absolute % error | **11.3%** | 14.4% |
+| Priced within 20% of actual | **73.5%** | 64.8% |
+
+**The forest is more accurate on every measure**, and the notebook and the web page both say
+so. What the from-scratch model wins on is everything else: 5.9 KB against 18 MB, one dot
+product per prediction, and 105 coefficients you can read off and explain to a customer.
+That — not accuracy — is the basis on which the new page recommends it.
+
+The full written report, with the findings discussion and four MLflow screenshots
+(`figures/mlflow_*.png`), is the last section of the notebook.
 
 ## MLflow
 
@@ -102,9 +164,10 @@ Then open `http://127.0.0.1:5000`.
 To use a remote tracking server instead, export `MLFLOW_TRACKING_URI` before starting
 Jupyter; the notebook picks it up and needs no other change.
 
-The class logs the loss curve every 50 epochs rather than every epoch. Per-epoch logging
-across the full grid wrote 1.4 million metric rows and a 350 MB tracking database; at every
-50 it is 27,000 rows and the curves look the same.
+The class logs the loss curve every 50 epochs rather than every epoch. As it stands the
+tracking database holds 28,216 metric rows in 9.2 MB. Per-epoch logging is 50 times that —
+a first attempt had reached 548,000 rows and 135 MB before I stopped it — and the curves
+look the same either way.
 
 ## Running it
 

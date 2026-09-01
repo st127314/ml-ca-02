@@ -50,8 +50,10 @@ layout = html.Div(
                         html.H2("How this model differs from the A1 one"),
                         html.P(
                             "A1 used a Random Forest: 200 decision trees averaged "
-                            "together. It is more accurate at ranking cars, but it is "
-                            "an 18 MB file whose reasoning you cannot read."
+                            "together. Scored on the same held-out cars it is the more "
+                            "accurate of the two - log-scale R² 0.909 against 0.876, and "
+                            "73.5% of cars priced within 20% of what they sold for against "
+                            "64.8% - but it is an 18 MB file whose reasoning you cannot read."
                         ),
                         html.P(
                             "This model is a single equation. Every feature has one "
